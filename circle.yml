@@ -42,8 +42,10 @@ dependencies:
 
 test:
   override:
-    - ./scripts/circleci_test.sh
-    - ./scripts/circleci_parallel_run.sh './scripts/it-repl.sh $CI_SCALA_VERSION'
+    - ./scripts/circleci_test.sh:
+        parallel: true
+    - ./scripts/circleci_parallel_run.sh './scripts/it-repl.sh $CI_SCALA_VERSION':
+        parallel: true
   post:
     - bash <(curl -s https://codecov.io/bash)
     - if ( ( [ $CIRCLE_BRANCH = "master" ] || [ $CIRCLE_BRANCH = "beam-2.0" ] ) && $(grep -q SNAPSHOT version.sbt) ); then ./scripts/circleci_parallel_run.sh 'sbt ++$CI_SCALA_VERSION publish'; fi:
@@ -54,7 +56,7 @@ deployment:
     tag: /v.*/
     commands:
       - go get -u github.com/tcnksm/ghr
-      - ./scripts/circleci_parallel_run.sh 'sbt ++2.11.11 "project scio-repl" clean assembly'
+      - ./scripts/circleci_parallel_run.sh 'sbt ++$CI_SCALA_VERSION "project scio-repl" clean assembly'
       - mkdir "$CIRCLE_ARTIFACTS/repl"
       - cp scio-repl/target/scala-*/scio-repl-*.jar "$CIRCLE_ARTIFACTS/repl/"
       - ghr -u spotify -draft $CIRCLE_TAG "$CIRCLE_ARTIFACTS/repl"
