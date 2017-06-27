@@ -41,8 +41,23 @@ import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
+object ScioResult {
+  private implicit val distributionResultSg = Semigroup.from[DistributionResult] { (x, y) =>
+    DistributionResult.create(
+      x.sum() + y.sum(), x.count() + y.count(),
+      math.min(x.min(), y.min()), math.max(x.max(), y.max()))
+  }
+
+  private implicit val gaugeResultSg = Semigroup.from[GaugeResult] { (x, y) =>
+    // sum by taking the latest
+    if (x.timestamp() isAfter y.timestamp()) x else y
+  }
+}
+
 /** Represent a Scio pipeline result. */
 class ScioResult private[scio] (val internal: PipelineResult, val context: ScioContext) {
+
+  import ScioResult._
 
   private val logger = LoggerFactory.getLogger(this.getClass)
 
@@ -211,17 +226,6 @@ class ScioResult private[scio] (val internal: PipelineResult, val context: ScioC
       MetricValue(sg.plus(x.attempted, y.attempted), sgO.plus(x.committed, y.committed))
     }
     xs.values.reduce(sg.plus)
-  }
-
-  private implicit val distributionResultSg = Semigroup.from[DistributionResult] { (x, y) =>
-    DistributionResult.create(
-      x.sum() + y.sum(), x.count() + y.count(),
-      math.min(x.min(), y.min()), math.max(x.max(), y.max()))
-  }
-
-  private implicit val gaugeResultSg = Semigroup.from[GaugeResult] { (x, y) =>
-    // sum by taking the latest
-    if (x.timestamp() isAfter y.timestamp()) x else y
   }
 
 }
